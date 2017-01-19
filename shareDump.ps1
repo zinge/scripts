@@ -1,4 +1,4 @@
-﻿<# 
+<# 
 .SYNOPSIS 
 Dump/Restore share permissions to $sharesXmlFile file. 
  
@@ -22,6 +22,9 @@ C:\PS> Dump-Shares -srvName RemoteServerName -sharesXmlFile "c:\shareXmlInfo.xml
  
 .EXAMPLE 
 C:\PS> Restore-Shares -srvName RemoteServerName -sharesXmlFile "c:\shareXmlInfo.xml"
+
+.LINK
+https://t.me/id58162774
  
 #> 
 
@@ -120,3 +123,4 @@ function Restore-Shares{
         }
     }
 }
+
