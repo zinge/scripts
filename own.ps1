@@ -35,7 +35,7 @@ Function list-own
   Process
   {
   #list all object owners, recursively in $startPath
-  Get-ChildItem $startPath  -force -Recurse -ErrorAction 'SilentlyContinue' | `
+  Get-ChildItem $startPath  -Force -Recurse -ErrorAction 'SilentlyContinue' | `
     Get-Acl | `
     Format-List -Property PsPath, Owner
   }
