@@ -44,7 +44,7 @@ function mainFunction{
             [string]$uName = Read-Host "Введи начало фамилии"
 
             if($uName -eq [string]::Empty){
-                [string ]$allAction = Read-Host "Посмотрим всех ?(Y|N)"
+                [string]$allAction = Read-Host "Посмотрим всех ?(Y|N)"
                 
                 if($allAction -match "[yY]|[дД]"){
                     $userFilter = "*"
