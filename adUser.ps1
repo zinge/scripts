@@ -306,7 +306,7 @@ function mainFunction{
                     Write-Host -f Cyan "Пользователь '$samName' состоит в следующих группах:"
                     (Get-ADUser -Filter {SamAccountName -eq $samName} -Server $domName -SearchBase $ouName -Properties MemberOf).MemberOf
                 }else{
-                    Write-Host -f Red "что-то не находит этого пользователя"
+                    Write-Host -f Red "что-то не находит пользователя '$samName'"
                 }
             }
             recurseFunction
@@ -318,12 +318,12 @@ function mainFunction{
             if($groupName -eq [string]::Empty){
                 Write-Host -f red "Нужны данные для продолжения"
             }else{          
-                $groupMembers = Get-ADGroup -Filter {name -eq $groupName} -Server $domName -SearchBase $ouName
-                if($groupMembers){
+                $groupObj = Get-ADGroup -Filter {name -eq $groupName} -Server $domName -SearchBase $ouName
+                if($groupObj){
                     Write-Host -f Cyan "В группе '$groupName' состоят следующие пользователи:"
-                    ($groupMembers | Get-ADGroupMember).distinguishedName
+                    ($groupObj | Get-ADGroupMember).distinguishedName
                 }else{
-                    Write-Host -f Red "что-то не находит эту группу"
+                    Write-Host -f Red "что-то не находит группу '$groupName'"
                 }
             }
             recurseFunction
