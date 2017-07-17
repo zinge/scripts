@@ -40,13 +40,13 @@ function mainFunction{
     switch ($action)
     {
         1 {
-            #Инфомация о пользователе, по начальным буквам Name (в ответе возможны множественные данные)
-            [string]$uName = Read-Host "Введи начало фамилии"
+            #Инфомация о пользователе (в ответе возможны множественные данные)
+            [string]$uName = Read-Host "Введи часть ФИО"
 
             if($uName -eq [string]::Empty){
-                [string]$allAction = Read-Host "Посмотрим всех ?(Y|N)"
+                [string]$allUsers = Read-Host "Посмотрим всех ?(Y|N)"
                 
-                if($allAction -match "[yY]|[дД]"){
+                if($allUsers -match "[yY]|[дД]"){
                     $userFilter = "*"
                 }else{
                     Write-Host -f red "Нужны данные для продолжения"
@@ -54,7 +54,7 @@ function mainFunction{
                 }
             }else{
 
-                $userFilter = $($uName+"*")
+                $userFilter = $("*"+$uName+"*")
             }
 
             if($userFilter -ne [string]::Empty){
