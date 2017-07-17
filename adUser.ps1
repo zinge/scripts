@@ -34,7 +34,7 @@ function mainFunction{
     10 -> Показать информацию о группах пользователя
     11 -> Показать пользователей в группе
 
-    другое -> отмена
+    другое -> очистить экран
 "
 
     switch ($action)
@@ -329,6 +329,7 @@ function mainFunction{
             recurseFunction
         }
         default {
+            clear
             recurseFunction
         }
     }
