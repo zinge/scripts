@@ -231,7 +231,7 @@ function mainFunction{
                     }else{
                         Write-Host -f Red "Ошибка в имени группы"
                     }
-                }esle{
+                }else{
                     Write-Host -f Red "Ошибка в учетной записи"
                 }
             }
@@ -268,7 +268,7 @@ function mainFunction{
                     }else{
                         Write-Host -f Red "Ошибка в имени группы"
                     }
-                }esle{
+                }else{
                     Write-Host -f Red "Ошибка в учетной записи"
                 }
             }
