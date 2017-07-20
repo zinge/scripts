@@ -3,7 +3,7 @@ $domName = "<EDIT>.<EDIT>.<EDIT>"
 $ouName = "ou=<EDIT>,dc=<EDIT>,dc=<EDIT>,dc=<EDIT>"
 
 function recurseFunction{
-    [string]$action  = Read-Host "Повторим?(Y|N)"
+    [string]$action  = Read-Host "Показать меню?(Y|N)"
 
     if($action -match "[yY]|[дД]"){
         mainFunction
@@ -12,6 +12,56 @@ function recurseFunction{
     }else{
         Write-Host -f Yellow "Ничего не понял, на всякий случай СТОП"
     }
+}
+
+function createFilter($question){
+    <#
+        if(samAccountName){
+            $sam = $true
+        }else{
+            $sam = $false
+        }
+
+        $question = @([string]$questionString, [bool]$sam)
+    #>
+    [string]$filterName = Read-Host $question[0]
+    
+    if($question[1]){
+
+        if($filterName -eq [string]::Empty){
+            Write-Host -f red "Нужны данные для продолжения"
+            $stop = Read-Host "Стоп?(Y|N)"
+            if($stop -match "[yY]|[дД]"){
+                $filter = ""
+            }else{
+                $filter = createFilter($question)
+            }
+
+        }else{
+            $filter = $filterName
+        }
+    }else{
+
+        if($filterName -eq [string]::Empty){
+            [string]$all = Read-Host "Посмотрим всех ?(Y|N)"
+                
+            if($all -match "[yY]|[дД]"){
+                $filter = "*"
+            }else{
+                Write-Host -f red "Нужны данные для продолжения"
+                $stop = Read-Host "Стоп?(Y|N)"
+                if($stop -match "[yY]|[дД]"){
+                    $filter = ""
+                }else{
+                    $filter = createFilter($question)
+                }
+            }
+        }else{
+            $filter = $($filterName+"*")
+        }
+    }
+
+    return $filter
 }
 
 function mainFunction{
@@ -24,6 +74,7 @@ function mainFunction{
     3 -> Блокировать
     4 -> Разблокировать
     5 -> Показать только блокированных
+    12 -> Сменить номер телефона пользователя
 
     Группы:
     -------------
@@ -41,22 +92,8 @@ function mainFunction{
     {
         1 {
             #Инфомация о пользователе (в ответе возможны множественные данные)
-            [string]$uName = Read-Host "Введи часть ФИО"
-
-            if($uName -eq [string]::Empty){
-                [string]$allUsers = Read-Host "Посмотрим всех ?(Y|N)"
-                
-                if($allUsers -match "[yY]|[дД]"){
-                    $userFilter = "*"
-                }else{
-                    Write-Host -f red "Нужны данные для продолжения"
-                    $userFilter = ""
-                }
-            }else{
-
-                $userFilter = $("*"+$uName+"*")
-            }
-
+            $userFilter = createFilter(@("Введи часть ФИО (можно использовать '*' вначале)", $false))
+            
             if($userFilter -ne [string]::Empty){
                 $matchUsers = Get-ADUser -Filter {Name -like $userFilter} -Server $domName -SearchBase $ouName -Properties `
                         SamAccountName, enabled, DistinguishedName, Name, wWWHomePage, `
@@ -74,84 +111,84 @@ function mainFunction{
                         @{N="Телефон";E={$_.telephoneNumber}}
 
                 if($matchUsers){
-                    $matchUsers | format-list
+                    $matchUsers | Format-List
                 }else{
                     write-host -f red "Ничего не найдено"
                 }
             }
-
             recurseFunction      
         }
         2 {
             #Смена пароля, принимает SamAccountName
-            [string]$samName = Read-Host "Введи имя учетки"
+            $samFilter = createFilter(@("Введи имя учетки", $true))
 
-            if($samName -eq [string]::Empty){
-                Write-Host -f red "Нужны данные для продолжения"
-            }else{
-                if($uObj = Get-ADUser -Filter {SamAccountName -eq $samName} -Server $domName -SearchBase $ouName){
+            if($samFilter -ne [string]::Empty){
+                if($uObj = Get-ADUser -Filter {SamAccountName -eq $samFilter} -Server $domName -SearchBase $ouName){
                     $pass = Read-Host -AsSecureString "Введи пароль для пользователя"
                     try{
-                        Set-ADAccountPassword $uObj -Reset -NewPassword $pass
+                        $uObj | Set-ADAccountPassword -Reset -NewPassword $pass -ErrorAction SilentlyContinue -WarningAction SilentlyContinue -InformationAction SilentlyContinue
                     }
                     catch{
                         Write-Host -f red "Cмена пароля завершилась ошибкой"
                     }
                     finally{
-                    Write-Host -f Cyan "Для '$samName' меняли пароль:" (Get-ADUser -Filter {SamAccountName -eq $samName} -Server $domName -SearchBase $ouName -Properties PasswordLastSet).PasswordLastSet
+                    Write-Host -f Cyan "Для '$samFilter' меняли пароль:" (Get-ADUser -Filter {SamAccountName -eq $samFilter} -Server $domName -SearchBase $ouName -Properties PasswordLastSet).PasswordLastSet
                     }
                 }else{
-                    Write-Host -f Red "Поиск пользователя закончился неудачей"
+                    Write-Host -f Red "Поиск пользователя закончился неудачно"
                 }
             }
-
             recurseFunction
         }
         3 {
             #Блокировка пользователя, принимает SamAccountName
-            [string]$samName = Read-Host "Введи имя учетки"
-            
-            if($samName -eq [string]::Empty){
-                Write-Host -f red "Нужны данные для продолжения"
-            }else{
+            $samFilter = createFilter(@("Введи имя учетки", $true))
 
-                try{
-                    Get-ADUser -Filter {SamAccountName -eq $samName} -Server $domName -SearchBase $ouName | Disable-ADAccount
-                }
-                catch{
-                    Write-Host -f red "Блокировка пользователя завершилась ошибкой"
-                }
-                finally{
-                    if ((Get-ADUser -Filter {SamAccountName -eq $samName} -Server $domName -SearchBase $ouName).Enabled){
-                        Write-Host -f Cyan "'$samName' не заблокирован"
-                    }else{
-                        Write-Host -f Cyan "'$samName' заблокирован"
+            if($samFilter -ne [string]::Empty){
+                if($uObj = Get-ADUser -Filter {SamAccountName -eq $samFilter} -Server $domName -SearchBase $ouName){
+
+                    try{
+                        $uObj | Disable-ADAccount -ErrorAction SilentlyContinue -WarningAction SilentlyContinue -InformationAction SilentlyContinue
                     }
+                    catch{
+                        Write-Host -f red "Блокировка пользователя завершилась ошибкой"
+                    }
+                    finally{
+                        if ((Get-ADUser -Filter {SamAccountName -eq $samFilter} -Server $domName -SearchBase $ouName).Enabled){
+                            Write-Host -f Cyan "'$samFilter' не заблокирован"
+                        }else{
+                            Write-Host -f Cyan "'$samFilter' заблокирован"
+                        }
+                    }
+                }else{
+                    Write-Host -f Red "Поиск пользователя закончился неудачно"
                 }
             }
-
             recurseFunction
         }
         4 {
             #Разблокировка пользователя, принимает SamAccountName
-            [string]$samName = Read-Host "Введи имя учетки"
-            if($samName -eq [string]::Empty){
-                Write-Host -f red "Нужны данные для продолжения"
-            }else{
+            $samFilter = createFilter(@("Введи имя учетки", $true))
+            
+            if($samFilter -ne [string]::Empty){
+                if($uObj = Get-ADUser -Filter {SamAccountName -eq $samFilter} -Server $domName -SearchBase $ouName){
 
-                try{
-                    Get-ADUser -Filter {SamAccountName -eq $samName} -Server $domName -SearchBase $ouName | Unlock-ADAccount
-                    Get-ADUser -Filter {SamAccountName -eq $samName} -Server $domName -SearchBase $ouName | Enable-ADAccount
-                }
-                catch{
-                    Write-Host "Разблокировка пользователя завершилась ошибкой"
-                }
-                 finally{
-                    if ((Get-ADUser -Filter {SamAccountName -eq $samName} -Server $domName -SearchBase $ouName).Enabled){
-                        Write-Host -f Cyan "'$samName' не заблокирован"
-                    }else{
-                        Write-Host -f Cyan "'$samName' заблокирован"
+                    try{  
+                        $uObj | Unlock-ADAccount -ErrorAction SilentlyContinue -WarningAction SilentlyContinue -InformationAction SilentlyContinue
+                        $uObj | Enable-ADAccount -ErrorAction SilentlyContinue -WarningAction SilentlyContinue -InformationAction SilentlyContinue
                     }
+                    catch{
+                        Write-Host "Разблокировка пользователя завершилась ошибкой"
+                    }
+                        finally{
+                        if ((Get-ADUser -Filter {SamAccountName -eq $samFilter} -Server $domName -SearchBase $ouName).Enabled){
+                            Write-Host -f Cyan "'$samFilter' не заблокирован"
+                        }else{
+                            Write-Host -f Cyan "'$samFilter' заблокирован"
+                        }
+                    }
+                }else{
+                    write-host -f red "Поиск пользователя закончился неудачно"    
                 }
             }
             recurseFunction
@@ -182,20 +219,17 @@ function mainFunction{
         }
         6 {
             #Показать информацию о группах
-            [string]$groupName = Read-Host "Введи часть имени группы"
-            
-            if($groupName -eq [string]::Empty){
-                $groupFilter = "*"
-            }else{
-                $groupFilter = $("*"+$groupName+"*")
-            }
+            $groupFilter = createFilter(@("Введи часть имени группы", $false))
 
-            $matchGroups = Get-ADGroup -Filter {Name -like $groupFilter} -Server $domName -SearchBase $ouName | Select-Object Name
+            if($groupFilter -ne [string]::Empty){
             
-            if($matchGroups){
-                $matchGroups | Format-List
-            }else{
-                Write-Host -f Red "Ничего не найдено"
+                $groupObj = Get-ADGroup -Filter {Name -like $groupFilter} -Server $domName -SearchBase $ouName | Select-Object Name
+            
+                if($groupObj){
+                    $groupObj | Format-List
+                }else{
+                    Write-Host -f Red "Ничего не найдено"
+                }
             }
 
             recurseFunction
@@ -213,7 +247,7 @@ function mainFunction{
                     $groupObj = Get-ADGroup -Filter {Name -eq $groupName} -Server $domName -SearchBase $ouName
                     if($groupObj){
                         try{
-                            Add-ADGroupMember -Identity $groupObj -Members $userObj -Server $domName
+                            Add-ADGroupMember -Identity $groupObj -Members $userObj -Server $domName -ErrorAction SilentlyContinue -WarningAction SilentlyContinue -InformationAction SilentlyContinue
                         }
                         catch{
                             Write-Host -f Red `
@@ -242,15 +276,15 @@ function mainFunction{
             [string]$samName = Read-Host "Введи имя учетки"
             [string]$groupName = Read-Host "Введи имя группы"
 
-            if(($samName -eq [string]::Empty) -OR ($groupName -eq [string]::Empty)){
+            if(($userSamName -eq [string]::Empty) -OR ($groupName -eq [string]::Empty)){
                 Write-Host -f red "Нужны данные для продолжения"
             }else{
-                $userObj = Get-ADUser -Filter {SamAccountName -eq $samName} -Server $domName -SearchBase $ouName
+                $userObj = Get-ADUser -Filter {SamAccountName -eq $userSamName} -Server $domName -SearchBase $ouName
                 if($userObj){
                     $groupObj = Get-ADGroup -Filter {Name -eq $groupName} -Server $domName -SearchBase $ouName
                     if($groupObj){
                         try{
-                            Remove-ADGroupMember -Identity $groupObj -Members $userObj -Server $domName
+                            Remove-ADGroupMember -Identity $groupObj -Members $userObj -Server $domName -ErrorAction SilentlyContinue -WarningAction SilentlyContinue -InformationAction SilentlyContinue
                         }
                         catch{
                             Write-Host -f Red `
@@ -262,8 +296,8 @@ function mainFunction{
                             закончилось ошибкой
                             "
                         }finally{
-                            Write-Host -f Cyan "Пользователь '$samName' состоит в следующих группах:"
-                            (Get-ADUser -Filter {SamAccountName -eq $samName} -Server $domName -SearchBase $ouName -Properties MemberOf).MemberOf
+                            Write-Host -f Cyan "Пользователь '$userSamName' состоит в следующих группах:"
+                            (Get-ADUser -Filter {SamAccountName -eq $userSamName} -Server $domName -SearchBase $ouName -Properties MemberOf).MemberOf
                         }
                     }else{
                         Write-Host -f Red "Ошибка в имени группы"
@@ -283,12 +317,13 @@ function mainFunction{
                 Write-Host -f red "Нужны данные для продолжения"
             }else{
                 try{
-                    New-ADGroup -Path "OU=ФункциональныеГруппы,$ouName" -GroupScope Global -GroupCategory Security -SamAccountName $groupSamName -DisplayName $groupName -Name $groupSamName -Description $groupName
+                    New-ADGroup -Path "OU=ФункциональныеГруппы,$ouName" -GroupScope Global -GroupCategory Security -SamAccountName $groupSamName -DisplayName $groupName -Name $groupSamName -Description $groupName -ErrorAction SilentlyContinue -WarningAction SilentlyContinue -InformationAction SilentlyContinue
                 }
                 catch{
                     Write-Host -f Red "что-то пошло не так(("
                 }
                 finally{
+                    Write-Host -f Cyan "На текущий момент существуют следующие группы:"
                     Get-ADGroup -Filter * -Server $domName -SearchBase $ouName 
                 }
             }
@@ -296,41 +331,60 @@ function mainFunction{
         }
         10 {
             #в каких группах состоит пользователь
-            [string]$samName = Read-Host "Введи имя учетки"
 
-            if($samName -eq [string]::Empty){
-                Write-Host -f red "Нужны данные для продолжения"
-            }else{          
-                $userObj = Get-ADUser -Filter {SamAccountName -eq $samName} -Server $domName -SearchBase $ouName
-                if($userObj){
-                    Write-Host -f Cyan "Пользователь '$samName' состоит в следующих группах:"
-                    (Get-ADUser -Filter {SamAccountName -eq $samName} -Server $domName -SearchBase $ouName -Properties MemberOf).MemberOf
+            $userFilter = createFilter(@("Введи имя учетки", $true))
+
+            if($userFilter -ne [string]::Empty){
+       
+                if($userObj = Get-ADUser -Filter {SamAccountName -eq $userFilter} -Server $domName -SearchBase $ouName -Properties MemberOf){
+                    Write-Host -f Cyan "Пользователь '$userFilter' состоит в следующих группах:"
+                    ($userObj).MemberOf
                 }else{
-                    Write-Host -f Red "что-то не находит пользователя '$samName'"
+                    Write-Host -f Red "что-то не находит этого пользователя"
                 }
             }
             recurseFunction
         }
         11 {
             #какие пользователи состоят в группе
-            [string]$groupName = Read-Host "Введи имя группы"
+            $groupFilter = createFilter(@("Введи имя группы", $true))
 
-            if($groupName -eq [string]::Empty){
-                Write-Host -f red "Нужны данные для продолжения"
-            }else{          
-                $groupObj = Get-ADGroup -Filter {name -eq $groupName} -Server $domName -SearchBase $ouName
-                if($groupObj){
-                    Write-Host -f Cyan "В группе '$groupName' состоят следующие пользователи:"
+            if($groupFilter -ne [string]::Empty){       
+                if($groupObj = Get-ADGroup -Filter {name -eq $groupFilter} -Server $domName -SearchBase $ouName){
+                    Write-Host -f Cyan "В группе '$groupFilter' состоят следующие пользователи:"
                     ($groupObj | Get-ADGroupMember).distinguishedName
                 }else{
-                    Write-Host -f Red "что-то не находит группу '$groupName'"
+                    Write-Host -f Red "что-то не находит эту группу"
                 }
             }
             recurseFunction
         }
+        12 {
+            #Смена телефона, принимает SamAccountName
+            $userFilter = createFilter(@("Введи имя учетки", $true))
+
+            if($userFilter -ne [string]::Empty){
+                if($uObj = Get-ADUser -Filter {SamAccountName -eq $userFilter} -Server $domName -SearchBase $ouName){
+                    $phone = Read-Host "Введи номер телефона для пользователя"
+                    try{
+                        $uObj | Set-ADUser -OfficePhone $phone -ErrorAction SilentlyContinue -WarningAction SilentlyContinue -InformationAction SilentlyContinue
+                    }
+                    catch{
+                        Write-Host -f red "Cмена номера завершилась ошибкой"
+                    }
+                    finally{
+                    Write-Host -f Cyan "Для '$userFilter' телефонный номер:" (Get-ADUser -Filter {SamAccountName -eq $userFilter} -Server $domName -SearchBase $ouName -Properties telephoneNumber).telephoneNumber
+                    }
+                }else{
+                    Write-Host -f Red "Поиск пользователя закончился неудачно"
+                }
+            }
+
+            recurseFunction
+        }
         default {
             clear
-            recurseFunction
+            mainFunction
         }
     }
 }
