@@ -95,7 +95,7 @@ function mainFunction{
             $userFilter = createFilter(@("Введи часть ФИО (можно использовать '*' вначале)", $false))
             
             if($userFilter -ne [string]::Empty){
-                $matchUsers = Get-ADUser -Filter {Name -like $userFilter} -Server $domName -SearchBase $ouName -Properties `
+                $usrObj = Get-ADUser -Filter {Name -like $userFilter} -Server $domName -SearchBase $ouName -Properties `
                         SamAccountName, enabled, DistinguishedName, Name, wWWHomePage, `
                         whenCreated, lastLogon, Department, mail, telephoneNumber | `
                     Select-object `
@@ -110,8 +110,8 @@ function mainFunction{
                         @{N="Почта";E={$_.mail}}, `
                         @{N="Телефон";E={$_.telephoneNumber}}
 
-                if($matchUsers){
-                    $matchUsers | Format-List
+                if($usrObj){
+                    $usrObj | Format-List
                 }else{
                     write-host -f red "Ничего не найдено"
                 }
@@ -123,10 +123,10 @@ function mainFunction{
             $samFilter = createFilter(@("Введи имя учетки", $true))
 
             if($samFilter -ne [string]::Empty){
-                if($uObj = Get-ADUser -Filter {SamAccountName -eq $samFilter} -Server $domName -SearchBase $ouName){
+                if($usrObj = Get-ADUser -Filter {SamAccountName -eq $samFilter} -Server $domName -SearchBase $ouName){
                     $pass = Read-Host -AsSecureString "Введи пароль для пользователя"
                     try{
-                        $uObj | Set-ADAccountPassword -Reset -NewPassword $pass -ErrorAction SilentlyContinue -WarningAction SilentlyContinue -InformationAction SilentlyContinue
+                        $usrObj | Set-ADAccountPassword -Reset -NewPassword $pass -ErrorAction SilentlyContinue -WarningAction SilentlyContinue -InformationAction SilentlyContinue
                     }
                     catch{
                         Write-Host -f red "Cмена пароля завершилась ошибкой"
@@ -145,10 +145,10 @@ function mainFunction{
             $samFilter = createFilter(@("Введи имя учетки", $true))
 
             if($samFilter -ne [string]::Empty){
-                if($uObj = Get-ADUser -Filter {SamAccountName -eq $samFilter} -Server $domName -SearchBase $ouName){
+                if($usrObj = Get-ADUser -Filter {SamAccountName -eq $samFilter} -Server $domName -SearchBase $ouName){
 
                     try{
-                        $uObj | Disable-ADAccount -ErrorAction SilentlyContinue -WarningAction SilentlyContinue -InformationAction SilentlyContinue
+                        $usrObj | Disable-ADAccount -ErrorAction SilentlyContinue -WarningAction SilentlyContinue -InformationAction SilentlyContinue
                     }
                     catch{
                         Write-Host -f red "Блокировка пользователя завершилась ошибкой"
@@ -171,11 +171,11 @@ function mainFunction{
             $samFilter = createFilter(@("Введи имя учетки", $true))
             
             if($samFilter -ne [string]::Empty){
-                if($uObj = Get-ADUser -Filter {SamAccountName -eq $samFilter} -Server $domName -SearchBase $ouName){
+                if($usrObj = Get-ADUser -Filter {SamAccountName -eq $samFilter} -Server $domName -SearchBase $ouName){
 
                     try{  
-                        $uObj | Unlock-ADAccount -ErrorAction SilentlyContinue -WarningAction SilentlyContinue -InformationAction SilentlyContinue
-                        $uObj | Enable-ADAccount -ErrorAction SilentlyContinue -WarningAction SilentlyContinue -InformationAction SilentlyContinue
+                        $usrObj | Unlock-ADAccount -ErrorAction SilentlyContinue -WarningAction SilentlyContinue -InformationAction SilentlyContinue
+                        $usrObj | Enable-ADAccount -ErrorAction SilentlyContinue -WarningAction SilentlyContinue -InformationAction SilentlyContinue
                     }
                     catch{
                         Write-Host "Разблокировка пользователя завершилась ошибкой"
@@ -195,7 +195,7 @@ function mainFunction{
         }
         5 {
             #Показать заблокированных пользователей
-            $matchUsers = Get-ADUser -Filter {enabled -eq "False"} -Server $domName -SearchBase $ouName -Properties `
+            $usrObj = Get-ADUser -Filter {enabled -eq "False"} -Server $domName -SearchBase $ouName -Properties `
                     SamAccountName, enabled, DistinguishedName, Name, wWWHomePage, `
                     whenCreated, lastLogon, Department, mail, telephoneNumber | `
                 Select-object `
@@ -209,12 +209,11 @@ function mainFunction{
                     @{N="Отдел";E={$_.Department}}, `
                     @{N="Почта";E={$_.mail}}, `
                     @{N="Телефон";E={$_.telephoneNumber}}
-            if($matchUsers){
-                $matchUsers | format-list
+            if($usrObj){
+                $usrObj | format-list
             }else{
                 write-host -f red "Ничего не найдено"
             }
-
             recurseFunction
         }
         6 {
@@ -231,18 +230,17 @@ function mainFunction{
                     Write-Host -f Red "Ничего не найдено"
                 }
             }
-
             recurseFunction
         }
         7 {
             #добавить в группу
-            [string]$samName = Read-Host "Введи имя учетки"
+            [string]$userName = Read-Host "Введи имя учетки"
             [string]$groupName = Read-Host "Введи имя группы"
             
-            if(($samName -eq [string]::Empty) -OR ($groupName -eq [string]::Empty)){
+            if(($userName -eq [string]::Empty) -OR ($groupName -eq [string]::Empty)){
                 Write-Host -f red "Нужны данные для продолжения"
             }else{
-                $userObj = Get-ADUser -Filter {SamAccountName -eq $samName} -Server $domName -SearchBase $ouName
+                $userObj = Get-ADUser -Filter {SamAccountName -eq $userName} -Server $domName -SearchBase $ouName
                 if($userObj){
                     $groupObj = Get-ADGroup -Filter {Name -eq $groupName} -Server $domName -SearchBase $ouName
                     if($groupObj){
@@ -253,14 +251,14 @@ function mainFunction{
                             Write-Host -f Red `
                             "
                             добавление пользователя
-                            >> '$userObj.SamAccountName'
+                            >> '$userName'
                             в группу
-                            >> '$groupName.SamAccountName'
+                            >> '$groupName'
                             закончилось ошибкой
                             "
                         }finally{
-                            Write-Host -f Cyan "Пользователь '$samName' состоит в следующих группах:"
-                            (Get-ADUser -Filter {SamAccountName -eq $samName} -Server $domName -SearchBase $ouName -Properties MemberOf).MemberOf
+                            Write-Host -f Cyan "Пользователь '$userName' состоит в следующих группах:"
+                            (Get-ADUser -Filter {SamAccountName -eq $userName} -Server $domName -SearchBase $ouName -Properties MemberOf).MemberOf
                         }
                     }else{
                         Write-Host -f Red "Ошибка в имени группы"
@@ -273,13 +271,13 @@ function mainFunction{
         }
         8 {
             #удалить из группы
-            [string]$samName = Read-Host "Введи имя учетки"
+            [string]$userName = Read-Host "Введи имя учетки"
             [string]$groupName = Read-Host "Введи имя группы"
 
-            if(($userSamName -eq [string]::Empty) -OR ($groupName -eq [string]::Empty)){
+            if(($userName -eq [string]::Empty) -OR ($groupName -eq [string]::Empty)){
                 Write-Host -f red "Нужны данные для продолжения"
             }else{
-                $userObj = Get-ADUser -Filter {SamAccountName -eq $userSamName} -Server $domName -SearchBase $ouName
+                $userObj = Get-ADUser -Filter {SamAccountName -eq $userName} -Server $domName -SearchBase $ouName
                 if($userObj){
                     $groupObj = Get-ADGroup -Filter {Name -eq $groupName} -Server $domName -SearchBase $ouName
                     if($groupObj){
@@ -290,14 +288,14 @@ function mainFunction{
                             Write-Host -f Red `
                             "
                             удаление пользователя
-                            >> '$userObj.SamAccountName'
+                            >> '$userName'
                             из группы
-                            >> '$groupName.SamAccountName'
+                            >> '$groupName'
                             закончилось ошибкой
                             "
                         }finally{
-                            Write-Host -f Cyan "Пользователь '$userSamName' состоит в следующих группах:"
-                            (Get-ADUser -Filter {SamAccountName -eq $userSamName} -Server $domName -SearchBase $ouName -Properties MemberOf).MemberOf
+                            Write-Host -f Cyan "Пользователь '$userName' состоит в следующих группах:"
+                            (Get-ADUser -Filter {SamAccountName -eq $userName} -Server $domName -SearchBase $ouName -Properties MemberOf).MemberOf
                         }
                     }else{
                         Write-Host -f Red "Ошибка в имени группы"
@@ -364,10 +362,10 @@ function mainFunction{
             $userFilter = createFilter(@("Введи имя учетки", $true))
 
             if($userFilter -ne [string]::Empty){
-                if($uObj = Get-ADUser -Filter {SamAccountName -eq $userFilter} -Server $domName -SearchBase $ouName){
+                if($usrObj = Get-ADUser -Filter {SamAccountName -eq $userFilter} -Server $domName -SearchBase $ouName){
                     $phone = Read-Host "Введи номер телефона для пользователя"
                     try{
-                        $uObj | Set-ADUser -OfficePhone $phone -ErrorAction SilentlyContinue -WarningAction SilentlyContinue -InformationAction SilentlyContinue
+                        $usrObj | Set-ADUser -OfficePhone $phone -ErrorAction SilentlyContinue -WarningAction SilentlyContinue -InformationAction SilentlyContinue
                     }
                     catch{
                         Write-Host -f red "Cмена номера завершилась ошибкой"
@@ -379,12 +377,11 @@ function mainFunction{
                     Write-Host -f Red "Поиск пользователя закончился неудачно"
                 }
             }
-
             recurseFunction
         }
         default {
             clear
-            mainFunction
+            recurseFunction
         }
     }
 }
