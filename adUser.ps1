@@ -111,11 +111,29 @@ function mainFunction{
                         @{N="Телефон";E={$_.telephoneNumber}}
 
                 if($usrObj){
-                    $usrObj | Format-List
+                    $usrObj | Format-List                    
                 }else{
                     write-host -f red "Ничего не найдено"
                 }
             }
+
+            $pingAction = Read-Host "Пингануть?(Y|N)"
+            if($pingAction -match "[yY]|[дД]"){
+                $userPCs = $usrObj."Последний ПК"
+                $pingAction = Read-Host "Всех в списке?(Y|N)"
+                if($pingAction -match "[nN]|[нН]"){
+                    Write-Host -f Cyan "Выбери кого:"
+                    for($i=0; $i -le $userPCs.length-1; $i++){
+                        "Позиция [{0}] => {1}" -f $i, $userPCs[$i]
+                    }
+                    
+                    $selectedPCs = read-host "введи цифру из []"
+                    Test-Connection -ComputerName $userPCs[${selectedPCs}] -Count 1 | Select-Object Address, IPV4Address, ReplySize, ResponseTime | ft
+                }else{
+                    $userPCs | %{Test-Connection $_ -Count 1 | Select-Object Address, IPV4Address, ReplySize, ResponseTime}
+                }
+            }
+
             recurseFunction      
         }
         2 {
@@ -214,6 +232,7 @@ function mainFunction{
             }else{
                 write-host -f red "Ничего не найдено"
             }
+
             recurseFunction
         }
         6 {
@@ -230,6 +249,7 @@ function mainFunction{
                     Write-Host -f Red "Ничего не найдено"
                 }
             }
+
             recurseFunction
         }
         7 {
@@ -377,6 +397,7 @@ function mainFunction{
                     Write-Host -f Red "Поиск пользователя закончился неудачно"
                 }
             }
+
             recurseFunction
         }
         default {
