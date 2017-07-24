@@ -117,18 +117,23 @@ function mainFunction{
                 }
             }
 
-            $pingAction = Read-Host "Пингануть?(Y|N)"
+            $pingAction = Read-Host "ПИНГануть ПК пользователй?(Y|N)"
             if($pingAction -match "[yY]|[дД]"){
                 $userPCs = $usrObj."Последний ПК"
-                $pingAction = Read-Host "Всех в списке?(Y|N)"
+                $pingAction = Read-Host "ПИНГануть все ПК найденных пользователей?(Y|N)"
                 if($pingAction -match "[nN]|[нН]"){
-                    Write-Host -f Cyan "Выбери кого:"
+                    Write-Host -f Cyan "Ок. Тогда можно ПИНГануть следующие ПК,"
                     for($i=0; $i -le $userPCs.length-1; $i++){
                         "Позиция [{0}] => {1}" -f $i, $userPCs[$i]
                     }
                     
-                    $selectedPCs = read-host "введи цифру из []"
-                    Test-Connection -ComputerName $userPCs[${selectedPCs}] -Count 1 | Select-Object Address, IPV4Address, ReplySize, ResponseTime | ft
+                    $selectedPCs = read-host "для выбора, введи цифру из []"
+                    try{
+                        Test-Connection -ComputerName $userPCs[${selectedPCs}] -Count 1 | Select-Object Address, IPV4Address, ReplySize, ResponseTime -ErrorAction SilentlyContinue | ft
+                    }
+                    catch [System.Net.NetworkInformation.PingException]{
+                        Write-Host -f Red $Error[0].Exception.Message
+                    }
                 }else{
                     $userPCs | %{Test-Connection $_ -Count 1 | Select-Object Address, IPV4Address, ReplySize, ResponseTime}
                 }
