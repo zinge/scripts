@@ -111,34 +111,32 @@ function mainFunction{
                         @{N="Телефон";E={$_.telephoneNumber}}
 
                 if($usrObj){
-                    $usrObj | Format-List                    
+                    $usrObj | Format-List
+
+                    $pingAction = Read-Host "ПИНГануть ПК пользователй?(Y|N)"
+                    if($pingAction -match "[yY]|[дД]"){
+                        $userPCs = $usrObj."Последний ПК"
+                        $pingAction = Read-Host "ПИНГануть все ПК найденных пользователей?(Y|N)"
+                        if($pingAction -match "[nN]|[нН]"){
+                            Write-Host -f Cyan "Ок. Тогда можно ПИНГануть следующие ПК:"
+                            for($i=0; $i -le $userPCs.length-1; $i++){
+                                "Имя ПК [{0}] => {1}" -f $i, $userPCs[$i]
+                            }
+                            $selectedPCs = read-host "Для выбора, введи цифру из []"
+                            try{
+                                Test-Connection -ComputerName $userPCs[${selectedPCs}] -Count 1 | Select-Object Address, IPV4Address, ReplySize, ResponseTime -ErrorAction SilentlyContinue | ft
+                            }
+                            catch [System.Net.NetworkInformation.PingException]{
+                                Write-Host -f Red $Error[0].Exception.Message
+                            }
+                        }else{
+                            $userPCs | %{Test-Connection $_ -Count 1 | Select-Object Address, IPV4Address, ReplySize, ResponseTime}
+                        }
+                    }
                 }else{
                     write-host -f red "Ничего не найдено"
                 }
             }
-
-            $pingAction = Read-Host "ПИНГануть ПК пользователй?(Y|N)"
-            if($pingAction -match "[yY]|[дД]"){
-                $userPCs = $usrObj."Последний ПК"
-                $pingAction = Read-Host "ПИНГануть все ПК найденных пользователей?(Y|N)"
-                if($pingAction -match "[nN]|[нН]"){
-                    Write-Host -f Cyan "Ок. Тогда можно ПИНГануть следующие ПК:"
-                    for($i=0; $i -le $userPCs.length-1; $i++){
-                        "Имя ПК [{0}] => {1}" -f $i, $userPCs[$i]
-                    }
-                    
-                    $selectedPCs = read-host "Для выбора, введи цифру из []"
-                    try{
-                        Test-Connection -ComputerName $userPCs[${selectedPCs}] -Count 1 | Select-Object Address, IPV4Address, ReplySize, ResponseTime -ErrorAction SilentlyContinue | ft
-                    }
-                    catch [System.Net.NetworkInformation.PingException]{
-                        Write-Host -f Red $Error[0].Exception.Message
-                    }
-                }else{
-                    $userPCs | %{Test-Connection $_ -Count 1 | Select-Object Address, IPV4Address, ReplySize, ResponseTime}
-                }
-            }
-
             recurseFunction      
         }
         2 {
