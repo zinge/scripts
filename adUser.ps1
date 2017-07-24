@@ -122,12 +122,12 @@ function mainFunction{
                 $userPCs = $usrObj."Последний ПК"
                 $pingAction = Read-Host "ПИНГануть все ПК найденных пользователей?(Y|N)"
                 if($pingAction -match "[nN]|[нН]"){
-                    Write-Host -f Cyan "Ок. Тогда можно ПИНГануть следующие ПК,"
+                    Write-Host -f Cyan "Ок. Тогда можно ПИНГануть следующие ПК:"
                     for($i=0; $i -le $userPCs.length-1; $i++){
-                        "Позиция [{0}] => {1}" -f $i, $userPCs[$i]
+                        "Имя ПК [{0}] => {1}" -f $i, $userPCs[$i]
                     }
                     
-                    $selectedPCs = read-host "для выбора, введи цифру из []"
+                    $selectedPCs = read-host "Для выбора, введи цифру из []"
                     try{
                         Test-Connection -ComputerName $userPCs[${selectedPCs}] -Count 1 | Select-Object Address, IPV4Address, ReplySize, ResponseTime -ErrorAction SilentlyContinue | ft
                     }
