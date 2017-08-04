@@ -111,9 +111,9 @@ function mainFunction{
                         @{N="Телефон";E={$_.telephoneNumber}}
 
                 if($usrObj){
-                    $usrObj | Format-List
+                    $usrObj | FL
 
-                    $pingAction = Read-Host "ПИНГануть ПК пользователй?(Y|N)"
+                    $pingAction = Read-Host "ПИНГануть ПК пользователей?(Y|N)"
                     if($pingAction -match "[yY]|[дД]"){
                         $userPCs = $usrObj."Последний ПК"
                         $pingAction = Read-Host "ПИНГануть все ПК найденных пользователей?(Y|N)"
@@ -121,7 +121,7 @@ function mainFunction{
                             Write-Host -f Cyan "Ок. Тогда можно ПИНГануть следующие ПК:"
                             for($i=0; $i -le $userPCs.length-1; $i++){
                                 "Имя ПК [{0}] => {1}" -f $i, $userPCs[$i]
-                            }
+                            }                 
                             $selectedPCs = read-host "Для выбора, введи цифру из []"
                             try{
                                 Test-Connection -ComputerName $userPCs[${selectedPCs}] -Count 1 | Select-Object Address, IPV4Address, ReplySize, ResponseTime -ErrorAction SilentlyContinue | ft
